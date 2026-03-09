@@ -5,24 +5,25 @@ from dotenv import load_dotenv
 import os
 import time
 
+def main(Scraper,rd):
+    Scraper.getNodesHierarchy()
+    Scraper.scrapeContainers()
+    Scraper.scrapeNodes()
+    rd.storeStatusByContainer(Scraper.containerData)
+    rd.storeStatusByNode(Scraper.nodeData)
 
-def main():
-    for i in range(5):
-        data = prox.scrapeCluster()
-        rd.storeStatusByContainer(data)
-        time.sleep(int(os.getenv("CONTAINER_SCRAPE_INTERVAL")))
-    
-    #Inserir futuramente o prox.scrapeContainer() atualizando uma vez para cada container. (Listar os containers no Mysql e armazernar as infos no MongoDB)
-
+load_dotenv()
 
 cm = ConnectionManager()
-prox = ProxmoxerScraper(cm.connect())
+conn = cm.connect()
+
+Scraper = ProxmoxerScraper(conn)
+Scraper.scrapeNodes
 
 rd = redisDriver()
 rd.connect()
 
-load_dotenv()
 while(True):
-    main()
+    main(Scraper, rd)
     time.sleep(int(os.getenv("CONTAINER_SCRAPE_INTERVAL")))
     

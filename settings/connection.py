@@ -1,17 +1,20 @@
 from proxmoxer import ProxmoxAPI
-from dotenv import load_dotenv
 import os
 
 class ConnectionManager():
     def __init__(self):
-        load_dotenv()
         self.conn = None
+        self.host = os.getenv("PVE_HOST")
+        self.user = os.getenv("PVE_USER")
+        self.tokenName = os.getenv("PVE_TOKEN_NAME")
+        self.tokenValue = os.getenv("PVE_TOKEN_VALUE")
 
     def connect(self):
-        if self.conn == None:
-            self.conn = ProxmoxAPI(os.getenv("PVE_HOST"),
-                        user = os.getenv("PVE_USER"),
-                        token_name = os.getenv("PVE_TOKEN_NAME"),
-                        token_value = os.getenv("PVE_TOKEN_VALUE"),
-                        verify_ssl = False)
+        #Connects to the PROXMOX cluster
+        if self.conn is None:
+            self.conn = ProxmoxAPI(host = self.host,
+                                   user = self.user,
+                                   token_name = self.tokenName,
+                                   token_value = self.tokenValue,
+                                   verify_ssl = False)
         return self.conn

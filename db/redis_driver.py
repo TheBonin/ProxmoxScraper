@@ -3,39 +3,62 @@ import json
 import os
 
 class redisDriver():
-    def __init__(self):
-        self.r = None
+    _instance = None
+    _initialized = None
     
-    def connect(self):
-        # Connects to and return an Redis instance
-        if self.r is None:
-            self.r = redis.Redis(host=os.getenv("REDIS_HOST"), port=os.getenv("REDIS_PORT"),
-                password=os.getenv("REDIS_PASSWORD"),
-                decode_responses=True)
-        return self.r
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+        
+    def __init__(self):
+        if self._initialized is None:
+            self._initialized = True
+            self.host = os.getenv("REDIS_HOST")
+            self.port = int(os.getenv("REDIS_PORT", 6379))
+            self.password = os.getenv("REDIS_PASSWORD")
+            self.cnx = None
+    
+    def connect(self) -> None:
+        """
+        Connects to the redis database and create an connection object.
+        """
+        self.r = redis.Redis(host=self.host,
+                             port=self.port,
+                             password=self.password,
+                             decode_responses=True)
     
     def storeStatusByContainer(self, data: dict) -> None:
-        # Recieve a dictionary where key is the container/VM/node id and it's content is the container/VM/node's status.
-        # Store scraped and formatted container/VM/node data on Redis using 'ct:{id}:status' as tag.
-        for id in data:
-            if data[id]['type'] == 'node':
-                json_data = json.dumps(data[id])
-                self.r.set(name= f'node:{id}:status',
-                    value= json_data,
+        """
+        Recieves a dictionary where keys are the vmid and it's contents are the containerses status.
+        Store scraped and formatted containers data on Redis using 'ct:{vmid}:status' as tag.
+        """
+        for vmid, status in data.items():
+            try:
+                json_status = json.dumps(status)
+                self.r.set(name= f'ct:{vmid}:status',
+                    value= json_status,
                     ex= os.getenv("REDIS_EXPIRE_IN_SECONDS"))
-                print(f'{id}: status salvo no Redis!')
-            else:
-                json_data = json.dumps(data[id])
-                self.r.set(name= f'ct:{id}:status',
-                    value= json_data,
-                    ex= os.getenv("REDIS_EXPIRE_IN_SECONDS"))
-                print(f'{id}: status salvo no Redis!')
+            except redis.exceptions.ConnectionError:
+                print(f"CRITICAL: Could not reach Redis to save VM {vmid}")
+        print("VMs uploaded to Redis!")
 
-    def storeClusterStatus(self,data,clusterId: dict) -> None:
-        # Recieve a dictionary where it's content is the Node status.
-        # Store scraped and formatted cluster data on Redis using 'ct:{clusterId}:status' as tag.
-        json_data = json.dumps(data)
-        self.r.set(name= f'ct:{clusterId}:status',
-              value= json_data,
-              ex= os.getenv("REDIS_EXPIRE_IN_SECONDS"))
-        print(f'ct:{clusterId}:status salvo no Redis!')
+    def storeStatusByNode(self, data: dict) -> None:
+        """
+        Recieves a dictionary where keys are the nodes names and it's contents are the nodeses status.
+        Store scraped and formatted nodes data on Redis using 'ct:{node_name}:status' as tag.
+        """
+        for node_name, status in data.items():
+            try:
+                json_status = json.dumps(status)
+                self.r.set(name= f'node:{node_name}:status',
+                    value= json_status,
+                    ex= os.getenv("REDIS_EXPIRE_IN_SECONDS"))
+            except redis.exceptions.ConnectionError:
+                print(f"CRITICAL: Could not reach Redis to save node {node_name}")
+        print("Nodes uploaded to Redis!")
+    
+    def close(self):
+        self.r.close()
+        self._instance = None
+        self._initialized = None

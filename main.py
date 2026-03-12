@@ -1,11 +1,19 @@
 from services.scraper import ProxmoxerScraper
 from settings.connection import ConnectionManager
 from db.redis_driver import redisDriver
+from db.sql_driver import sqlDriver
 from dotenv import load_dotenv
 import os
 import time
 
-def main(Scraper,rd):
+def uploadMysql(Scraper,sql):
+    Scraper.getNodesHierarchy()
+    Scraper.scrapeContainers()
+    Scraper.scrapeNodes()
+    sql.updateNodesInMySQL(Scraper.nodeData)
+    sql.updateContainersInMySQL(Scraper.containerData)
+
+def uploadRedis(Scraper,rd):
     Scraper.getNodesHierarchy()
     Scraper.scrapeContainers()
     Scraper.scrapeNodes()
@@ -23,7 +31,13 @@ Scraper.scrapeNodes
 rd = redisDriver()
 rd.connect()
 
+sql = sqlDriver()
+sql.connect()
+
 while(True):
-    main(Scraper, rd)
-    time.sleep(int(os.getenv("CONTAINER_SCRAPE_INTERVAL")))
+    for i in range(int(os.getenv("CONTAINER_MYSQL_SCRAPE_INTERVAL"))):
+        uploadRedis(Scraper, rd)
+        time.sleep(int(os.getenv("CONTAINER_REDIS_SCRAPE_INTERVAL")))
+    uploadMysql(Scraper,sql)
+    
     

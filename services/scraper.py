@@ -25,16 +25,17 @@ class ProxmoxerScraper():
         for node, vmids in self.nodes.items():
             for vmid in vmids:
                 data = self.conn(f'/nodes/{node}/lxc/{vmid}/status/current').get()
-                cleaned_data = self.formatContainerData(data)
+                cleaned_data = self.formatContainerData(data,node)
                 self.containerData[vmid] = cleaned_data
 
-    def formatContainerData(self, data):
+    def formatContainerData(self, data, node):
         """
         Format data from '/nodes/{node}/lxc/{vmid}/status/current' incoming API
         """
         gb_factor = 1024**3
         cleaned_data = {
             'name': data['name'],
+            'node': node,
             'status': data['status'],
             'cpu_usage': round(data['cpu'] * 100,2),
             'cpu_max': data['cpus'],
@@ -78,6 +79,7 @@ class ProxmoxerScraper():
             'mem_usage': round(data['memory']['used'] / gb_factor,2),
             'mem_max': round(data['memory']['total'] / gb_factor,2),
             'swap_usage': round(data['swap']['used'] / gb_factor,2), #If above 0, the server is beeing slowed down by RAM
+            'swap_max': round(data['swap']['total'] / gb_factor,2),
             'root_storage': round(data['rootfs']['avail'] / gb_factor,2), #Storage available in boot drive, if full, server will crash
             'uptime': data['uptime'],
             'storage_wait': round(data['wait'] * 100,2) #Percentage of time system's been waiting for the SSD/HD
